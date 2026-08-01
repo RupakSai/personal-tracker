@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -96,7 +97,14 @@ WSGI_APPLICATION = 'personal_tracker.wsgi.application'
 
 database_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
 
-if database_url:
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'test.sqlite3',
+        }
+    }
+elif database_url:
     import dj_database_url
 
     DATABASES = {
@@ -107,11 +115,17 @@ if database_url:
         )
     }
 else:
-    sqlite_name = Path('/tmp/db.sqlite3') if os.environ.get('VERCEL') else BASE_DIR / 'db.sqlite3'
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': sqlite_name,
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB') or os.environ.get('PGDATABASE') or 'personal_tracker',
+            'USER': os.environ.get('POSTGRES_USER') or os.environ.get('PGUSER') or 'postgres',
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD') or os.environ.get('PGPASSWORD') or '',
+            'HOST': os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST') or 'localhost',
+            'PORT': os.environ.get('POSTGRES_PORT') or os.environ.get('PGPORT') or '5432',
+            'OPTIONS': {
+                'sslmode': os.environ.get('PGSSLMODE') or ('require' if not DEBUG else 'prefer'),
+            },
         }
     }
 
