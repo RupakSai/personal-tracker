@@ -6,6 +6,8 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.core import signing
+from django.core.signing import BadSignature, SignatureExpired
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -16,6 +18,9 @@ from .models import NutritionEntry
 
 
 PIN_CODE = '5909'
+AUTH_COOKIE_NAME = 'tracker_auth'
+AUTH_COOKIE_VALUE = 'rupak-unlocked'
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 CALORIE_LIMIT = 1500
 PROTEIN_MINIMUM = Decimal('70.0')
 FAT_LIMIT = Decimal('50.0')
@@ -33,7 +38,7 @@ def home(request):
         request,
         'app/tracker.html',
         {
-            'is_unlocked': request.session.get('pin_ok', False),
+            'is_unlocked': _is_unlocked(request),
         },
     )
 
@@ -42,16 +47,25 @@ def home(request):
 def unlock(request):
     data = _json_body(request)
     if data.get('pin') == PIN_CODE:
-        request.session['pin_ok'] = True
-        return JsonResponse({'ok': True})
+        response = JsonResponse({'ok': True})
+        response.set_cookie(
+            AUTH_COOKIE_NAME,
+            _auth_signer().sign(AUTH_COOKIE_VALUE),
+            max_age=AUTH_COOKIE_MAX_AGE,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
+        return response
 
     return JsonResponse({'ok': False, 'error': 'That PIN did not match.'}, status=403)
 
 
 @require_POST
 def logout(request):
-    request.session.flush()
-    return JsonResponse({'ok': True})
+    response = JsonResponse({'ok': True})
+    response.delete_cookie(AUTH_COOKIE_NAME, samesite='Lax')
+    return response
 
 
 @require_GET
@@ -197,9 +211,26 @@ def ai_estimate(request):
 
 
 def _auth_error(request):
-    if request.session.get('pin_ok'):
+    if _is_unlocked(request):
         return None
     return JsonResponse({'error': 'Please unlock the tracker first.'}, status=401)
+
+
+def _is_unlocked(request):
+    signed_value = request.COOKIES.get(AUTH_COOKIE_NAME)
+    if not signed_value:
+        return False
+
+    try:
+        value = _auth_signer().unsign(signed_value, max_age=AUTH_COOKIE_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return False
+
+    return value == AUTH_COOKIE_VALUE
+
+
+def _auth_signer():
+    return signing.TimestampSigner(salt='personal-tracker-auth')
 
 
 def _json_body(request):

@@ -18,6 +18,14 @@ class TrackerTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
+        self.assertIn('tracker_auth', response.cookies)
+
+    def test_signed_auth_cookie_allows_protected_api(self):
+        self.unlock()
+        response = self.client.get('/api/day/2026-08-01/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['date'], '2026-08-01')
 
     def test_manual_entry_stores_only_nutrition_fields(self):
         self.unlock()
