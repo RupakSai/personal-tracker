@@ -33,6 +33,7 @@
     const sheetError = document.getElementById('sheetError');
     const entryModeChoices = document.getElementById('entryModeChoices');
     const askAiButton = document.getElementById('askAiButton');
+    const toast = document.getElementById('toast');
 
     boot();
 
@@ -103,13 +104,18 @@
             event.preventDefault();
             clearSheetError();
             const data = Object.fromEntries(new FormData(manualForm).entries());
-            await saveEntry({
-                source: 'manual',
-                calories: data.calories,
-                protein_g: data.protein_g,
-                fat_g: data.fat_g,
-            });
-            closeSheet();
+            try {
+                await saveEntry({
+                    source: 'manual',
+                    calories: data.calories,
+                    protein_g: data.protein_g,
+                    fat_g: data.fat_g,
+                });
+                closeSheet();
+                showToast('Saved. Nice tracking.');
+            } catch (error) {
+                showSheetError(error.message);
+            }
         });
 
         aiForm.addEventListener('submit', async function (event) {
@@ -118,7 +124,7 @@
             state.pendingEstimate = null;
             aiResult.hidden = true;
             askAiButton.disabled = true;
-            askAiButton.textContent = 'Estimating...';
+            askAiButton.innerHTML = '<span class="button-spinner"></span> Estimating';
 
             try {
                 const data = Object.fromEntries(new FormData(aiForm).entries());
@@ -141,18 +147,24 @@
             if (!action || !state.pendingEstimate) return;
 
             if (action.dataset.aiAction === 'approve') {
-                await saveEntry({
-                    source: 'ai',
-                    calories: state.pendingEstimate.calories,
-                    protein_g: state.pendingEstimate.protein_g,
-                    fat_g: state.pendingEstimate.fat_g,
-                });
-                clearAiFlow();
-                closeSheet();
+                try {
+                    await saveEntry({
+                        source: 'ai',
+                        calories: state.pendingEstimate.calories,
+                        protein_g: state.pendingEstimate.protein_g,
+                        fat_g: state.pendingEstimate.fat_g,
+                    });
+                    clearAiFlow();
+                    closeSheet();
+                    showToast('Approved and added.');
+                } catch (error) {
+                    showSheetError(error.message);
+                }
             }
 
             if (action.dataset.aiAction === 'discard') {
                 clearAiFlow();
+                showToast('Estimate discarded.');
             }
         });
 
@@ -375,9 +387,15 @@
                 <span><b>${formatNumber(estimate.fat_g)}</b> fat g</span>
             </div>
             <p>${escapeHtml(estimate.explanation || 'Estimate ready for approval.')}</p>
-            <div class="choice-row">
-                <button type="button" data-ai-action="approve">Approve</button>
-                <button type="button" data-ai-action="discard">Disapprove</button>
+            <div class="approval-row">
+                <button class="approve-button" type="button" data-ai-action="approve" aria-label="Approve estimate">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+                    <span>Approve</span>
+                </button>
+                <button class="discard-button" type="button" data-ai-action="discard" aria-label="Disapprove estimate">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    <span>Disapprove</span>
+                </button>
             </div>
         `;
     }
@@ -395,6 +413,23 @@
 
     function showSheetError(message) {
         sheetError.textContent = message;
+    }
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.hidden = false;
+        toast.classList.remove('show');
+        requestAnimationFrame(function () {
+            toast.classList.add('show');
+        });
+
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(function () {
+            toast.classList.remove('show');
+            window.setTimeout(function () {
+                toast.hidden = true;
+            }, 220);
+        }, 2200);
     }
 
     async function api(url, options) {

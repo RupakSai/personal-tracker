@@ -216,7 +216,7 @@ def ai_estimate(request):
         return JsonResponse({'error': 'Please choose a preparation style.'}, status=400)
 
     try:
-        grams = _positive_decimal(data.get('grams'), 'grams')
+        grams = _optional_positive_decimal(data.get('grams'), 'grams')
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
 
@@ -317,6 +317,12 @@ def _positive_decimal(value, label):
     return number
 
 
+def _optional_positive_decimal(value, label):
+    if value in (None, ''):
+        return None
+    return _positive_decimal(value, label)
+
+
 def _entry_payload(entry):
     return {
         'id': entry.id,
@@ -409,7 +415,7 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
     model = _env_value('OPENAI_MODEL') or 'gpt-5.6-sol'
     payload = {
         'model': model,
-        'reasoning': {'effort': 'low'},
+        'reasoning': {'effort': 'high'},
         'input': [
             {
                 'role': 'system',
@@ -422,8 +428,10 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                             'Account for oil, tadka, ghee, butter, cream, nuts, peanuts, coconut, chutneys, podi, frying, sugar, sauces, rice-heavy plates, '
                             'restaurant oil, street-food oil reuse, and normal Indian serving variance. The user may enter one food or a comma/newline-separated '
                             'list of multiple foods; treat the full input as one combined meal/plate and return the combined calories, protein_g, and fat_g. '
-                            'If item-level quantities are provided, use them. If only one total gram value is provided, distribute that weight across the listed '
-                            'items using realistic Hyderabad/Telugu serving proportions, then estimate the combined total for the exact grams. '
+                            'If item-level quantities are provided in natural language, use them: examples include 3 idlis, seven-inch pizza, half 10-inch dosa, '
+                            '1 bowl rice, 2 ladles sambar, one small plate biryani, or one cup curd. If a total gram value is also provided, treat it as the '
+                            'highest-priority serving weight and distribute that weight across the listed items using realistic Hyderabad/Telugu proportions. '
+                            'If no grams are provided, infer a realistic total weight and serving size from the food text, preparation style, and local portion norms. '
                             'If the input is ambiguous, choose the most likely Hyderabad/Telugu interpretation and mention uncertainty briefly in explanation. '
                             'Do not include dish names or the user-provided food text in your response.'
                         ),
@@ -439,10 +447,14 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                             {
                                 'food_items_text': dish_name,
                                 'preparation_style': preparation_style,
-                                'total_serving_grams': str(grams),
+                                'total_serving_grams': str(grams) if grams is not None else None,
+                                'grams_were_provided': grams is not None,
                                 'locale': 'Hyderabad, Telangana, India',
                                 'cuisine_context': 'Telugu homestyle, Andhra/Telangana, Hyderabad-local assumptions',
-                                'estimation_instruction': 'Return one combined total for all listed items, not separate line items.',
+                                'estimation_instruction': (
+                                    'Return one combined total for all listed items, not separate line items. '
+                                    'When grams are missing, infer the serving from the portion words in food_items_text.'
+                                ),
                             }
                         ),
                     }

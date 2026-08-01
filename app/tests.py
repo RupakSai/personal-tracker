@@ -114,4 +114,31 @@ class TrackerTests(TestCase):
         self.assertEqual(str(grams), '360.0')
         self.assertEqual(NutritionEntry.objects.count(), 0)
 
+    @patch('app.views._openai_nutrition_estimate')
+    def test_ai_estimate_allows_optional_grams(self, estimate_mock):
+        estimate_mock.return_value = {
+            'calories': 330,
+            'protein_g': 8.0,
+            'fat_g': 11.0,
+            'confidence': 'medium',
+            'explanation': 'Inferred from the described serving.',
+        }
+        self.unlock()
+
+        response = self.client.post(
+            '/api/ai-estimate/',
+            data={
+                'dish_name': 'half 10-inch dosa with chutney',
+                'style': 'home',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        food_text, style_text, grams = estimate_mock.call_args.args
+        self.assertEqual(food_text, 'half 10-inch dosa with chutney')
+        self.assertIn('Hyderabad, India Telugu home-style', style_text)
+        self.assertIsNone(grams)
+        self.assertEqual(NutritionEntry.objects.count(), 0)
+
 # Create your tests here.

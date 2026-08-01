@@ -626,6 +626,238 @@ h1 {
     font-size: 1.2rem;
 }
 
+.eyebrow,
+.section-kicker,
+.pin-label,
+.error-text,
+.sheet-error,
+.pin-pad button,
+.icon-button,
+.shortcut-row button,
+.choice-row button,
+.weekday-row,
+.calendar-day,
+.primary-button,
+.macro-tile span,
+.macro-tile small,
+.status-pill,
+.entries-title span,
+.entry-row span,
+.delete-entry,
+.empty-state,
+.entry-form label,
+.entry-form fieldset,
+.entry-form input[type="number"],
+.entry-form input[type="text"],
+.estimate-grid span {
+    font-weight: 500;
+}
+
+h1,
+h2,
+h3,
+.macro-tile strong,
+.entry-row strong,
+.estimate-grid b {
+    font-weight: 600;
+}
+
+.app-shell {
+    animation: appEnter 360ms ease both;
+}
+
+.quick-panel,
+.calendar-wrap,
+.day-panel,
+.entry-row,
+.macro-tile,
+.ai-result {
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.calendar-day,
+.shortcut-row button,
+.choice-row button,
+.primary-button,
+.icon-button,
+.pin-pad button,
+.delete-entry,
+.approval-row button {
+    transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.calendar-day:active,
+.shortcut-row button:active,
+.choice-row button:active,
+.primary-button:active,
+.icon-button:active,
+.pin-pad button:active,
+.delete-entry:active,
+.approval-row button:active {
+    transform: scale(0.97);
+}
+
+.day-panel {
+    animation: panelRise 260ms ease both;
+}
+
+.sheet-backdrop {
+    animation: fadeIn 180ms ease both;
+}
+
+.entry-sheet {
+    animation: sheetRise 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.entry-form label small {
+    justify-self: start;
+    margin-top: -4px;
+    color: rgba(21, 23, 24, 0.48);
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.button-spinner {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.32);
+    border-top-color: #ffffff;
+    border-radius: 999px;
+    vertical-align: -2px;
+    animation: spin 720ms linear infinite;
+}
+
+.approval-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.approval-row button {
+    display: inline-flex;
+    min-height: 52px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    border-radius: 17px;
+    font-weight: 600;
+}
+
+.approval-row svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.approve-button {
+    background: rgba(21, 143, 105, 0.13);
+    color: #0f7456;
+    border-color: rgba(21, 143, 105, 0.24);
+}
+
+.approve-button:hover {
+    background: #158f69;
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(21, 143, 105, 0.2);
+}
+
+.discard-button {
+    background: rgba(225, 95, 73, 0.13);
+    color: #b84332;
+    border-color: rgba(225, 95, 73, 0.24);
+}
+
+.discard-button:hover {
+    background: #d94f3d;
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(225, 95, 73, 0.18);
+}
+
+.toast {
+    position: fixed;
+    z-index: 50;
+    right: 18px;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 18px;
+    width: min(calc(100% - 36px), 430px);
+    margin: 0 auto;
+    padding: 14px 16px;
+    border: 1px solid rgba(21, 143, 105, 0.18);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    color: var(--ink);
+    box-shadow: 0 18px 42px rgba(21, 23, 24, 0.18);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: center;
+    transform: translateY(18px);
+    opacity: 0;
+    transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+@keyframes appEnter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes panelRise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes sheetRise {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 @media (max-width: 480px) {
     .app-shell {
         padding-right: 12px;
