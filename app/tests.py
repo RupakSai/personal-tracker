@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.http import JsonResponse
 from django.test import TestCase
 
 from .models import NutritionEntry
@@ -26,6 +27,19 @@ class TrackerTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['date'], '2026-08-01')
+
+    @patch('app.views._ensure_tracker_table')
+    def test_day_api_returns_clear_database_error(self, ensure_table_mock):
+        ensure_table_mock.return_value = JsonResponse(
+            {'error': 'Tracker database is not ready.'},
+            status=503,
+        )
+        self.unlock()
+
+        response = self.client.get('/api/day/2026-08-01/')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('database', response.json()['error'])
 
     def test_manual_entry_stores_only_nutrition_fields(self):
         self.unlock()

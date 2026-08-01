@@ -8,7 +8,9 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
+from django.db import connection
 from django.db.models import Sum
+from django.db.utils import DatabaseError, OperationalError, ProgrammingError
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -74,6 +76,10 @@ def day_detail(request, selected_date):
     if auth_error:
         return auth_error
 
+    table_error = _ensure_tracker_table()
+    if table_error:
+        return table_error
+
     entry_date, error = _parse_date(selected_date)
     if error:
         return error
@@ -93,6 +99,10 @@ def month_summary(request):
     auth_error = _auth_error(request)
     if auth_error:
         return auth_error
+
+    table_error = _ensure_tracker_table()
+    if table_error:
+        return table_error
 
     today = date.today()
     try:
@@ -136,6 +146,10 @@ def create_entry(request, selected_date):
     if auth_error:
         return auth_error
 
+    table_error = _ensure_tracker_table()
+    if table_error:
+        return table_error
+
     entry_date, error = _parse_date(selected_date)
     if error:
         return error
@@ -174,6 +188,10 @@ def delete_entry(request, entry_id):
     auth_error = _auth_error(request)
     if auth_error:
         return auth_error
+
+    table_error = _ensure_tracker_table()
+    if table_error:
+        return table_error
 
     deleted, _ = NutritionEntry.objects.filter(id=entry_id).delete()
     if not deleted:
@@ -231,6 +249,36 @@ def _is_unlocked(request):
 
 def _auth_signer():
     return signing.TimestampSigner(salt='personal-tracker-auth')
+
+
+def _ensure_tracker_table():
+    table_name = NutritionEntry._meta.db_table
+
+    try:
+        if table_name in connection.introspection.table_names():
+            return None
+
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(NutritionEntry)
+    except (DatabaseError, OperationalError, ProgrammingError):
+        connection.close()
+        try:
+            if table_name in connection.introspection.table_names():
+                return None
+        except (DatabaseError, OperationalError, ProgrammingError):
+            pass
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Tracker database is not ready. Add DATABASE_URL or POSTGRES_URL in Vercel, '
+                    'then redeploy so entries can be saved.'
+                )
+            },
+            status=503,
+        )
+
+    return None
 
 
 def _json_body(request):

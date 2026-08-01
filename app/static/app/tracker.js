@@ -259,11 +259,36 @@
             button.classList.toggle('selected', button.dataset.date === dateKey);
         });
 
-        const response = await api(`/api/day/${dateKey}/`);
         dayPanel.hidden = false;
         selectedDateTitle.textContent = prettyDate(dateKey);
-        renderTotals(response.totals);
-        renderEntries(response.entries);
+        try {
+            const response = await api(`/api/day/${dateKey}/`);
+            renderTotals(response.totals);
+            renderEntries(response.entries);
+        } catch (error) {
+            renderDayError(error.message);
+        }
+    }
+
+    function renderDayError(message) {
+        renderTotals({
+            calories: 0,
+            protein_g: 0,
+            fat_g: 0,
+            targets: {
+                calories_max: 1500,
+                protein_min_g: 70,
+                fat_max_g: 50,
+            },
+            messages: [
+                {
+                    kind: 'bad',
+                    text: message || 'Could not load this day.',
+                },
+            ],
+        });
+        entryCount.textContent = '0 items';
+        entryList.innerHTML = '<div class="empty-state">Day details could not load.</div>';
     }
 
     function renderTotals(totals) {
