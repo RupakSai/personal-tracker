@@ -424,16 +424,22 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                         'type': 'input_text',
                         'text': (
                             'You estimate nutrition for food eaten in Hyderabad, India, especially Telugu/Andhra/Telangana foods. '
-                            'Prioritize regional realism over generic nutrition tables. Be brutally honest and accuracy-focused, not optimistic. '
+                            'Prioritize regional realism over generic nutrition tables. Think carefully and be accuracy-focused, not optimistic. '
                             'Account for oil, tadka, ghee, butter, cream, nuts, peanuts, coconut, chutneys, podi, frying, sugar, sauces, rice-heavy plates, '
                             'restaurant oil, street-food oil reuse, and normal Indian serving variance. The user may enter one food or a comma/newline-separated '
                             'list of multiple foods; treat the full input as one combined meal/plate and return the combined calories, protein_g, and fat_g. '
+                            'Model the preparation method explicitly. For Hyderabad street-style fried rice, for example, assume typical wok cooking with cooked rice, '
+                            'noticeable oil, soy/chilli sauces, limited vegetables unless stated, and common street-vendor portion sizes. For restaurant style, assume richer '
+                            'oil/butter/cream/cashew use where relevant. For Telugu home style, assume household tadka, regional chutneys, dal, rice, curry, and controlled but real oil. '
+                            'For diet-focused style, reduce oil only when the food text supports it, but do not make unrealistically lean assumptions. '
                             'If item-level quantities are provided in natural language, use them: examples include 3 idlis, seven-inch pizza, half 10-inch dosa, '
                             '1 bowl rice, 2 ladles sambar, one small plate biryani, or one cup curd. If a total gram value is also provided, treat it as the '
                             'highest-priority serving weight and distribute that weight across the listed items using realistic Hyderabad/Telugu proportions. '
                             'If no grams are provided, infer a realistic total weight and serving size from the food text, preparation style, and local portion norms. '
+                            'Return an item-by-item breakdown so the user can judge the estimate before approval. Include inferred grams and cooking assumptions for each item. '
+                            'The sum of the breakdown should approximately match the top-level total, allowing small rounding differences. '
                             'If the input is ambiguous, choose the most likely Hyderabad/Telugu interpretation and mention uncertainty briefly in explanation. '
-                            'Do not include dish names or the user-provided food text in your response.'
+                            'You may include short normalized food names in the temporary breakdown response, but do not echo long user-provided text verbatim.'
                         ),
                     }
                 ],
@@ -453,7 +459,8 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                                 'cuisine_context': 'Telugu homestyle, Andhra/Telangana, Hyderabad-local assumptions',
                                 'estimation_instruction': (
                                     'Return one combined total for all listed items, not separate line items. '
-                                    'When grams are missing, infer the serving from the portion words in food_items_text.'
+                                    'When grams are missing, infer the serving from the portion words in food_items_text. '
+                                    'Also return a visible breakdown that explains quantity, grams, oil/cooking assumptions, and macro contribution per item.'
                                 ),
                             }
                         ),
@@ -475,8 +482,42 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                         'fat_g': {'type': 'number', 'minimum': 0},
                         'confidence': {'type': 'string', 'enum': ['low', 'medium', 'high']},
                         'explanation': {'type': 'string'},
+                        'methodology': {'type': 'string'},
+                        'breakdown': {
+                            'type': 'array',
+                            'items': {
+                                'type': 'object',
+                                'additionalProperties': False,
+                                'properties': {
+                                    'item': {'type': 'string'},
+                                    'assumed_quantity': {'type': 'string'},
+                                    'assumed_grams': {'type': 'number', 'minimum': 0},
+                                    'calories': {'type': 'integer', 'minimum': 0},
+                                    'protein_g': {'type': 'number', 'minimum': 0},
+                                    'fat_g': {'type': 'number', 'minimum': 0},
+                                    'cooking_assumption': {'type': 'string'},
+                                },
+                                'required': [
+                                    'item',
+                                    'assumed_quantity',
+                                    'assumed_grams',
+                                    'calories',
+                                    'protein_g',
+                                    'fat_g',
+                                    'cooking_assumption',
+                                ],
+                            },
+                        },
                     },
-                    'required': ['calories', 'protein_g', 'fat_g', 'confidence', 'explanation'],
+                    'required': [
+                        'calories',
+                        'protein_g',
+                        'fat_g',
+                        'confidence',
+                        'explanation',
+                        'methodology',
+                        'breakdown',
+                    ],
                 },
             }
         },
@@ -509,10 +550,34 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
             'protein_g': _decimal_payload(_positive_decimal(estimate.get('protein_g'), 'protein')),
             'fat_g': _decimal_payload(_positive_decimal(estimate.get('fat_g'), 'fat')),
             'confidence': estimate.get('confidence', 'medium'),
-            'explanation': str(estimate.get('explanation', '')).strip()[:360],
+            'explanation': str(estimate.get('explanation', '')).strip()[:520],
+            'methodology': str(estimate.get('methodology', '')).strip()[:520],
+            'breakdown': _estimate_breakdown_payload(estimate.get('breakdown', [])),
         }
     except (json.JSONDecodeError, ValueError):
         raise RuntimeError('OpenAI returned an estimate in an unexpected format.')
+
+
+def _estimate_breakdown_payload(items):
+    if not isinstance(items, list):
+        return []
+
+    breakdown = []
+    for item in items[:8]:
+        if not isinstance(item, dict):
+            continue
+        breakdown.append(
+            {
+                'item': str(item.get('item', 'Item')).strip()[:80],
+                'assumed_quantity': str(item.get('assumed_quantity', '')).strip()[:80],
+                'assumed_grams': _decimal_payload(_positive_decimal(item.get('assumed_grams', 0), 'grams')),
+                'calories': _positive_int(item.get('calories', 0), 'calories'),
+                'protein_g': _decimal_payload(_positive_decimal(item.get('protein_g', 0), 'protein')),
+                'fat_g': _decimal_payload(_positive_decimal(item.get('fat_g', 0), 'fat')),
+                'cooking_assumption': str(item.get('cooking_assumption', '')).strip()[:180],
+            }
+        )
+    return breakdown
 
 
 def _extract_response_text(response_payload):

@@ -626,6 +626,93 @@ h1 {
     font-size: 1.2rem;
 }
 
+.estimate-method,
+.breakdown-block {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(40, 102, 217, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.68);
+}
+
+.estimate-method span,
+.breakdown-title span {
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.estimate-method p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.breakdown-title,
+.breakdown-top,
+.breakdown-macros {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.breakdown-title small {
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.breakdown-list {
+    display: grid;
+    gap: 8px;
+}
+
+.breakdown-item {
+    display: grid;
+    gap: 7px;
+    padding: 11px;
+    border: 1px solid rgba(21, 23, 24, 0.07);
+    border-radius: 15px;
+    background: #ffffff;
+}
+
+.breakdown-top strong {
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.breakdown-top span {
+    flex: 0 0 auto;
+    color: var(--green);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.breakdown-item p,
+.breakdown-item small {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.breakdown-macros {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.breakdown-macros span {
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: #f5f6f2;
+    color: var(--ink);
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
 .eyebrow,
 .section-kicker,
 .pin-label,

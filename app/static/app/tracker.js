@@ -387,6 +387,8 @@
                 <span><b>${formatNumber(estimate.fat_g)}</b> fat g</span>
             </div>
             <p>${escapeHtml(estimate.explanation || 'Estimate ready for approval.')}</p>
+            ${renderEstimateMethodology(estimate)}
+            ${renderEstimateBreakdown(estimate.breakdown || [])}
             <div class="approval-row">
                 <button class="approve-button" type="button" data-ai-action="approve" aria-label="Approve estimate">
                     <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
@@ -397,6 +399,50 @@
                     <span>Disapprove</span>
                 </button>
             </div>
+        `;
+    }
+
+    function renderEstimateMethodology(estimate) {
+        if (!estimate.methodology) return '';
+        return `
+            <div class="estimate-method">
+                <span>Method</span>
+                <p>${escapeHtml(estimate.methodology)}</p>
+            </div>
+        `;
+    }
+
+    function renderEstimateBreakdown(items) {
+        if (!items.length) return '';
+
+        return `
+            <div class="breakdown-block">
+                <div class="breakdown-title">
+                    <span>Breakdown</span>
+                    <small>${items.length} ${items.length === 1 ? 'item' : 'items'}</small>
+                </div>
+                <div class="breakdown-list">
+                    ${items.map(renderBreakdownItem).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderBreakdownItem(item) {
+        return `
+            <article class="breakdown-item">
+                <div class="breakdown-top">
+                    <strong>${escapeHtml(item.item || 'Item')}</strong>
+                    <span>${formatNumber(item.assumed_grams)} g</span>
+                </div>
+                <p>${escapeHtml(item.assumed_quantity || 'Estimated serving')}</p>
+                <div class="breakdown-macros">
+                    <span>${item.calories || 0} kcal</span>
+                    <span>${formatNumber(item.protein_g)} g protein</span>
+                    <span>${formatNumber(item.fat_g)} g fat</span>
+                </div>
+                <small>${escapeHtml(item.cooking_assumption || 'Cooking method estimated from selected style.')}</small>
+            </article>
         `;
     }
 

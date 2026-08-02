@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.http import JsonResponse
 from django.test import TestCase
 
+from . import views
 from .models import NutritionEntry
 
 
@@ -140,5 +141,25 @@ class TrackerTests(TestCase):
         self.assertIn('Hyderabad, India Telugu home-style', style_text)
         self.assertIsNone(grams)
         self.assertEqual(NutritionEntry.objects.count(), 0)
+
+    def test_estimate_breakdown_payload_is_normalized(self):
+        breakdown = views._estimate_breakdown_payload(
+            [
+                {
+                    'item': 'Hyderabad street veg fried rice',
+                    'assumed_quantity': 'one street-style plate',
+                    'assumed_grams': 420,
+                    'calories': 760,
+                    'protein_g': 13.4,
+                    'fat_g': 28.2,
+                    'cooking_assumption': 'Wok-fried cooked rice with noticeable oil, sauces, and limited vegetables.',
+                }
+            ]
+        )
+
+        self.assertEqual(breakdown[0]['item'], 'Hyderabad street veg fried rice')
+        self.assertEqual(breakdown[0]['assumed_grams'], 420.0)
+        self.assertEqual(breakdown[0]['calories'], 760)
+        self.assertEqual(breakdown[0]['protein_g'], 13.4)
 
 # Create your tests here.
