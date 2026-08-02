@@ -302,6 +302,59 @@ h1 {
     padding: 18px;
 }
 
+.day-heading {
+    align-items: flex-start;
+}
+
+.day-heading > div {
+    min-width: 0;
+}
+
+.add-entry-button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 0 14px 0 10px;
+    border: 1px solid rgba(21, 143, 105, 0.22);
+    border-radius: 18px;
+    background: linear-gradient(180deg, #f4fff9, #e8f7ef);
+    color: #0f7456;
+    box-shadow: 0 12px 26px rgba(21, 143, 105, 0.13);
+    white-space: nowrap;
+}
+
+.add-entry-button span {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 999px;
+    background: #158f69;
+    color: #ffffff;
+    font-size: 1.22rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.add-entry-button b {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.add-entry-button:hover {
+    border-color: rgba(21, 143, 105, 0.38);
+    background: #158f69;
+    color: #ffffff;
+    box-shadow: 0 16px 30px rgba(21, 143, 105, 0.2);
+}
+
+.add-entry-button:hover span {
+    background: rgba(255, 255, 255, 0.18);
+}
+
 .primary-button {
     min-height: 48px;
     padding: 0 18px;
@@ -766,6 +819,7 @@ h3,
 .shortcut-row button,
 .choice-row button,
 .primary-button,
+.add-entry-button,
 .icon-button,
 .pin-pad button,
 .delete-entry,
@@ -777,6 +831,7 @@ h3,
 .shortcut-row button:active,
 .choice-row button:active,
 .primary-button:active,
+.add-entry-button:active,
 .icon-button:active,
 .pin-pad button:active,
 .delete-entry:active,
@@ -969,6 +1024,17 @@ h3,
         min-height: 54px;
         padding: 0 8px;
         font-size: 0.76rem;
+    }
+
+    .day-heading {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .add-entry-button {
+        width: 100%;
+        min-height: 52px;
     }
 }
 
