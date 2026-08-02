@@ -11,7 +11,7 @@ class TrackerTests(TestCase):
     def unlock(self):
         return self.client.post(
             '/api/unlock/',
-            data={'pin': '5909'},
+            data={'pin': '8688'},
             content_type='application/json',
         )
 

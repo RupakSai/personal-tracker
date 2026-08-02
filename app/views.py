@@ -19,7 +19,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import NutritionEntry
 
 
-PIN_CODE = '5909'
+PIN_CODE = '8688'
 AUTH_COOKIE_NAME = 'tracker_auth'
 AUTH_COOKIE_VALUE = 'rupak-unlocked'
 AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
