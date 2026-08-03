@@ -429,9 +429,10 @@
             weightDisplay.innerHTML = '<span>No weight entered for this day.</span>';
             return;
         }
+        const savedDate = response.date || weight.date || state.selectedDate;
         weightDisplay.innerHTML = `
             <strong>${formatNumber(weight.weight_kg)} kg</strong>
-            <span>Saved for ${prettyDate(response.date)}</span>
+            <span>Saved for ${prettyDate(savedDate)}</span>
         `;
     }
 
@@ -685,6 +686,9 @@
     }
 
     function prettyDate(dateKey) {
+        if (!dateKey || typeof dateKey !== 'string') {
+            return 'Selected day';
+        }
         const parts = dateKey.split('-').map(Number);
         return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(undefined, {
             weekday: 'long',

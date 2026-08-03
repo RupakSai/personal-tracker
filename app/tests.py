@@ -72,6 +72,7 @@ class TrackerTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['weight']['weight_kg'], 82.4)
+        self.assertEqual(response.json()['weight']['date'], '2026-08-03')
 
         response = self.client.post(
             '/api/weight/day/2026-08-03/save/',
