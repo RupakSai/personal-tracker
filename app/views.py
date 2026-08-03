@@ -124,6 +124,9 @@ def month_summary(request):
             calories=Sum('calories'),
             protein_g=Sum('protein_g'),
             fat_g=Sum('fat_g'),
+            carbs_g=Sum('carbs_g'),
+            fibre_g=Sum('fibre_g'),
+            sugar_g=Sum('sugar_g'),
         )
         .order_by('date')
     )
@@ -134,6 +137,9 @@ def month_summary(request):
             int(row['calories'] or 0),
             Decimal(row['protein_g'] or 0),
             Decimal(row['fat_g'] or 0),
+            Decimal(row['carbs_g'] or 0),
+            Decimal(row['fibre_g'] or 0),
+            Decimal(row['sugar_g'] or 0),
         )
         days[row['date'].isoformat()] = totals
 
@@ -163,6 +169,9 @@ def create_entry(request, selected_date):
         calories = _positive_int(data.get('calories'), 'calories')
         protein_g = _positive_decimal(data.get('protein_g'), 'protein')
         fat_g = _positive_decimal(data.get('fat_g'), 'fat')
+        carbs_g = _positive_decimal(data.get('carbs_g', 0), 'carbohydrates')
+        fibre_g = _positive_decimal(data.get('fibre_g', 0), 'fibre')
+        sugar_g = _positive_decimal(data.get('sugar_g', 0), 'sugar')
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
 
@@ -172,6 +181,9 @@ def create_entry(request, selected_date):
         calories=calories,
         protein_g=protein_g,
         fat_g=fat_g,
+        carbs_g=carbs_g,
+        fibre_g=fibre_g,
+        sugar_g=sugar_g,
     )
     entries = NutritionEntry.objects.filter(date=entry_date)
     return JsonResponse(
@@ -447,25 +459,46 @@ def _ensure_tracker_table():
 
 
 def _ensure_tracker_tables(*models):
-    missing_models = []
-
     try:
         existing_tables = connection.introspection.table_names()
-        for model in models:
-            if model._meta.db_table not in existing_tables:
-                missing_models.append(model)
-
-        if not missing_models:
-            return None
 
         with connection.schema_editor() as schema_editor:
-            for model in missing_models:
-                schema_editor.create_model(model)
+            for model in models:
+                if model._meta.db_table not in existing_tables:
+                    schema_editor.create_model(model)
+                    continue
+
+                columns = {
+                    column.name
+                    for column in connection.introspection.get_table_description(
+                        connection.cursor(),
+                        model._meta.db_table,
+                    )
+                }
+                for field in model._meta.local_fields:
+                    if field.column not in columns:
+                        schema_editor.add_field(model, field)
     except (DatabaseError, OperationalError, ProgrammingError):
         connection.close()
         try:
             existing_tables = connection.introspection.table_names()
-            if all(model._meta.db_table in existing_tables for model in models):
+            tables_and_columns_exist = True
+            for model in models:
+                if model._meta.db_table not in existing_tables:
+                    tables_and_columns_exist = False
+                    break
+                columns = {
+                    column.name
+                    for column in connection.introspection.get_table_description(
+                        connection.cursor(),
+                        model._meta.db_table,
+                    )
+                }
+                if any(field.column not in columns for field in model._meta.local_fields):
+                    tables_and_columns_exist = False
+                    break
+
+            if tables_and_columns_exist:
                 return None
         except (DatabaseError, OperationalError, ProgrammingError):
             pass
@@ -561,6 +594,9 @@ def _entry_payload(entry):
         'calories': entry.calories,
         'protein_g': _decimal_payload(entry.protein_g),
         'fat_g': _decimal_payload(entry.fat_g),
+        'carbs_g': _decimal_payload(entry.carbs_g),
+        'fibre_g': _decimal_payload(entry.fibre_g),
+        'sugar_g': _decimal_payload(entry.sugar_g),
         'created_at': entry.created_at.isoformat(),
     }
 
@@ -588,16 +624,25 @@ def _totals_payload(entries):
         calories=Sum('calories'),
         protein_g=Sum('protein_g'),
         fat_g=Sum('fat_g'),
+        carbs_g=Sum('carbs_g'),
+        fibre_g=Sum('fibre_g'),
+        sugar_g=Sum('sugar_g'),
     )
     calories = int(totals['calories'] or 0)
     protein_g = Decimal(totals['protein_g'] or 0)
     fat_g = Decimal(totals['fat_g'] or 0)
-    return _status_payload(calories, protein_g, fat_g)
+    carbs_g = Decimal(totals['carbs_g'] or 0)
+    fibre_g = Decimal(totals['fibre_g'] or 0)
+    sugar_g = Decimal(totals['sugar_g'] or 0)
+    return _status_payload(calories, protein_g, fat_g, carbs_g, fibre_g, sugar_g)
 
 
-def _status_payload(calories, protein_g, fat_g):
+def _status_payload(calories, protein_g, fat_g, carbs_g=0, fibre_g=0, sugar_g=0):
     protein_g = Decimal(protein_g).quantize(Decimal('0.1'))
     fat_g = Decimal(fat_g).quantize(Decimal('0.1'))
+    carbs_g = Decimal(carbs_g).quantize(Decimal('0.1'))
+    fibre_g = Decimal(fibre_g).quantize(Decimal('0.1'))
+    sugar_g = Decimal(sugar_g).quantize(Decimal('0.1'))
 
     messages = []
     messages.append(
@@ -623,6 +668,9 @@ def _status_payload(calories, protein_g, fat_g):
         'calories': calories,
         'protein_g': _decimal_payload(protein_g),
         'fat_g': _decimal_payload(fat_g),
+        'carbs_g': _decimal_payload(carbs_g),
+        'fibre_g': _decimal_payload(fibre_g),
+        'sugar_g': _decimal_payload(sugar_g),
         'targets': {
             'calories_max': CALORIE_LIMIT,
             'protein_min_g': _decimal_payload(PROTEIN_MINIMUM),
@@ -679,11 +727,13 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                             'Prioritize regional realism over generic nutrition tables. Think carefully and be accuracy-focused, not optimistic. '
                             'Account for oil, tadka, ghee, butter, cream, nuts, peanuts, coconut, chutneys, podi, frying, sugar, sauces, rice-heavy plates, '
                             'restaurant oil, street-food oil reuse, and normal Indian serving variance. The user may enter one food or a comma/newline-separated '
-                            'list of multiple foods; treat the full input as one combined meal/plate and return the combined calories, protein_g, and fat_g. '
+                            'list of multiple foods; treat the full input as one combined meal/plate and return the combined calories, protein_g, fat_g, carbs_g, fibre_g, and sugar_g. '
                             'Model the preparation method explicitly. For Hyderabad street-style fried rice, for example, assume typical wok cooking with cooked rice, '
                             'noticeable oil, soy/chilli sauces, limited vegetables unless stated, and common street-vendor portion sizes. For restaurant style, assume richer '
                             'oil/butter/cream/cashew use where relevant. For Telugu home style, assume household tadka, regional chutneys, dal, rice, curry, and controlled but real oil. '
                             'For diet-focused style, reduce oil only when the food text supports it, but do not make unrealistically lean assumptions. '
+                            'For carbohydrates, fibre, and sugar, account for rice, wheat, maida, dosa/idli batter, potatoes, sweets, jaggery, chutneys, fruits, sauces, packaged ingredients, '
+                            'and the realistic fibre loss or gain from refined grains, dal, legumes, vegetables, peanuts, and coconut. '
                             'If item-level quantities are provided in natural language, use them: examples include 3 idlis, seven-inch pizza, half 10-inch dosa, '
                             '1 bowl rice, 2 ladles sambar, one small plate biryani, or one cup curd. If a total gram value is also provided, treat it as the '
                             'highest-priority serving weight and distribute that weight across the listed items using realistic Hyderabad/Telugu proportions. '
@@ -712,7 +762,7 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                                 'estimation_instruction': (
                                     'Return one combined total for all listed items, not separate line items. '
                                     'When grams are missing, infer the serving from the portion words in food_items_text. '
-                                    'Also return a visible breakdown that explains quantity, grams, oil/cooking assumptions, and macro contribution per item.'
+                                    'Also return a visible breakdown that explains quantity, grams, oil/cooking assumptions, and macro contribution per item, including carbs, fibre, and sugar.'
                                 ),
                             }
                         ),
@@ -732,6 +782,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                         'calories': {'type': 'integer', 'minimum': 0},
                         'protein_g': {'type': 'number', 'minimum': 0},
                         'fat_g': {'type': 'number', 'minimum': 0},
+                        'carbs_g': {'type': 'number', 'minimum': 0},
+                        'fibre_g': {'type': 'number', 'minimum': 0},
+                        'sugar_g': {'type': 'number', 'minimum': 0},
                         'confidence': {'type': 'string', 'enum': ['low', 'medium', 'high']},
                         'explanation': {'type': 'string'},
                         'methodology': {'type': 'string'},
@@ -747,6 +800,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                                     'calories': {'type': 'integer', 'minimum': 0},
                                     'protein_g': {'type': 'number', 'minimum': 0},
                                     'fat_g': {'type': 'number', 'minimum': 0},
+                                    'carbs_g': {'type': 'number', 'minimum': 0},
+                                    'fibre_g': {'type': 'number', 'minimum': 0},
+                                    'sugar_g': {'type': 'number', 'minimum': 0},
                                     'cooking_assumption': {'type': 'string'},
                                 },
                                 'required': [
@@ -756,6 +812,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                                     'calories',
                                     'protein_g',
                                     'fat_g',
+                                    'carbs_g',
+                                    'fibre_g',
+                                    'sugar_g',
                                     'cooking_assumption',
                                 ],
                             },
@@ -765,6 +824,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                         'calories',
                         'protein_g',
                         'fat_g',
+                        'carbs_g',
+                        'fibre_g',
+                        'sugar_g',
                         'confidence',
                         'explanation',
                         'methodology',
@@ -801,6 +863,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
             'calories': _positive_int(estimate.get('calories'), 'calories'),
             'protein_g': _decimal_payload(_positive_decimal(estimate.get('protein_g'), 'protein')),
             'fat_g': _decimal_payload(_positive_decimal(estimate.get('fat_g'), 'fat')),
+            'carbs_g': _decimal_payload(_positive_decimal(estimate.get('carbs_g'), 'carbohydrates')),
+            'fibre_g': _decimal_payload(_positive_decimal(estimate.get('fibre_g'), 'fibre')),
+            'sugar_g': _decimal_payload(_positive_decimal(estimate.get('sugar_g'), 'sugar')),
             'confidence': estimate.get('confidence', 'medium'),
             'explanation': str(estimate.get('explanation', '')).strip()[:520],
             'methodology': str(estimate.get('methodology', '')).strip()[:520],
@@ -826,6 +891,9 @@ def _estimate_breakdown_payload(items):
                 'calories': _positive_int(item.get('calories', 0), 'calories'),
                 'protein_g': _decimal_payload(_positive_decimal(item.get('protein_g', 0), 'protein')),
                 'fat_g': _decimal_payload(_positive_decimal(item.get('fat_g', 0), 'fat')),
+                'carbs_g': _decimal_payload(_positive_decimal(item.get('carbs_g', 0), 'carbohydrates')),
+                'fibre_g': _decimal_payload(_positive_decimal(item.get('fibre_g', 0), 'fibre')),
+                'sugar_g': _decimal_payload(_positive_decimal(item.get('sugar_g', 0), 'sugar')),
                 'cooking_assumption': str(item.get('cooking_assumption', '')).strip()[:180],
             }
         )

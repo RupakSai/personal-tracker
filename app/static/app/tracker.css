@@ -466,6 +466,18 @@ h1 {
     background: rgba(225, 95, 73, 0.12);
 }
 
+.macro-tile.carbs {
+    background: rgba(239, 184, 82, 0.16);
+}
+
+.macro-tile.fibre {
+    background: rgba(91, 132, 89, 0.14);
+}
+
+.macro-tile.sugar {
+    background: rgba(211, 93, 136, 0.12);
+}
+
 .meter {
     height: 7px;
     margin-top: 12px;
@@ -1146,7 +1158,7 @@ h3,
     }
 
     .macro-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .macro-tile {
@@ -1155,8 +1167,16 @@ h3,
         align-items: center;
     }
 
+    .macro-tile strong {
+        text-align: right;
+    }
+
     .macro-tile .meter {
         grid-column: 1 / -1;
+    }
+
+    .estimate-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .shortcut-row button {

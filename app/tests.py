@@ -51,6 +51,9 @@ class TrackerTests(TestCase):
                 'calories': 420,
                 'protein_g': 27,
                 'fat_g': 14,
+                'carbs_g': 48,
+                'fibre_g': 6,
+                'sugar_g': 5,
             },
             content_type='application/json',
         )
@@ -58,9 +61,22 @@ class TrackerTests(TestCase):
         self.assertEqual(response.status_code, 201)
         entry = NutritionEntry.objects.get()
         self.assertEqual(entry.calories, 420)
+        self.assertEqual(float(entry.carbs_g), 48.0)
+        self.assertEqual(response.json()['totals']['carbs_g'], 48.0)
         self.assertEqual(
             {field.name for field in NutritionEntry._meta.fields},
-            {'id', 'date', 'source', 'calories', 'protein_g', 'fat_g', 'created_at'},
+            {
+                'id',
+                'date',
+                'source',
+                'calories',
+                'protein_g',
+                'fat_g',
+                'carbs_g',
+                'fibre_g',
+                'sugar_g',
+                'created_at',
+            },
         )
 
     def test_weight_can_be_saved_and_edited_for_a_day(self):
@@ -107,6 +123,9 @@ class TrackerTests(TestCase):
             'calories': 510,
             'protein_g': 22.0,
             'fat_g': 28.0,
+            'carbs_g': 42.0,
+            'fibre_g': 5.0,
+            'sugar_g': 7.0,
             'confidence': 'medium',
             'explanation': 'Estimated with restaurant oil and dairy included.',
         }
@@ -130,6 +149,9 @@ class TrackerTests(TestCase):
             'calories': 690,
             'protein_g': 24.0,
             'fat_g': 31.0,
+            'carbs_g': 82.0,
+            'fibre_g': 9.0,
+            'sugar_g': 6.0,
             'confidence': 'medium',
             'explanation': 'Combined estimate for the full serving.',
         }
@@ -159,6 +181,9 @@ class TrackerTests(TestCase):
             'calories': 330,
             'protein_g': 8.0,
             'fat_g': 11.0,
+            'carbs_g': 44.0,
+            'fibre_g': 4.0,
+            'sugar_g': 2.0,
             'confidence': 'medium',
             'explanation': 'Inferred from the described serving.',
         }
@@ -190,6 +215,9 @@ class TrackerTests(TestCase):
                     'calories': 760,
                     'protein_g': 13.4,
                     'fat_g': 28.2,
+                    'carbs_g': 112.5,
+                    'fibre_g': 5.6,
+                    'sugar_g': 4.2,
                     'cooking_assumption': 'Wok-fried cooked rice with noticeable oil, sauces, and limited vegetables.',
                 }
             ]
@@ -199,5 +227,8 @@ class TrackerTests(TestCase):
         self.assertEqual(breakdown[0]['assumed_grams'], 420.0)
         self.assertEqual(breakdown[0]['calories'], 760)
         self.assertEqual(breakdown[0]['protein_g'], 13.4)
+        self.assertEqual(breakdown[0]['carbs_g'], 112.5)
+        self.assertEqual(breakdown[0]['fibre_g'], 5.6)
+        self.assertEqual(breakdown[0]['sugar_g'], 4.2)
 
 # Create your tests here.

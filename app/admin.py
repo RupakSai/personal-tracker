@@ -5,7 +5,7 @@ from .models import ExpenseEntry, NutritionEntry, WeightEntry
 
 @admin.register(NutritionEntry)
 class NutritionEntryAdmin(admin.ModelAdmin):
-    list_display = ('date', 'source', 'calories', 'protein_g', 'fat_g', 'created_at')
+    list_display = ('date', 'source', 'calories', 'protein_g', 'fat_g', 'carbs_g', 'fibre_g', 'sugar_g', 'created_at')
     list_filter = ('source', 'date')
     search_fields = ('date',)
 

@@ -23,6 +23,9 @@
     const caloriesTotal = document.getElementById('caloriesTotal');
     const proteinTotal = document.getElementById('proteinTotal');
     const fatTotal = document.getElementById('fatTotal');
+    const carbsTotal = document.getElementById('carbsTotal');
+    const fibreTotal = document.getElementById('fibreTotal');
+    const sugarTotal = document.getElementById('sugarTotal');
     const caloriesMeter = document.getElementById('caloriesMeter');
     const proteinMeter = document.getElementById('proteinMeter');
     const fatMeter = document.getElementById('fatMeter');
@@ -137,6 +140,9 @@
                     calories: data.calories,
                     protein_g: data.protein_g,
                     fat_g: data.fat_g,
+                    carbs_g: data.carbs_g,
+                    fibre_g: data.fibre_g,
+                    sugar_g: data.sugar_g,
                 });
                 closeSheet();
                 showToast('Saved. Nice tracking.');
@@ -213,6 +219,9 @@
                         calories: state.pendingEstimate.calories,
                         protein_g: state.pendingEstimate.protein_g,
                         fat_g: state.pendingEstimate.fat_g,
+                        carbs_g: state.pendingEstimate.carbs_g,
+                        fibre_g: state.pendingEstimate.fibre_g,
+                        sugar_g: state.pendingEstimate.sugar_g,
                     });
                     clearAiFlow();
                     closeSheet();
@@ -406,6 +415,9 @@
             calories: 0,
             protein_g: 0,
             fat_g: 0,
+            carbs_g: 0,
+            fibre_g: 0,
+            sugar_g: 0,
             targets: {
                 calories_max: 1500,
                 protein_min_g: 70,
@@ -465,6 +477,9 @@
         caloriesTotal.textContent = String(totals.calories);
         proteinTotal.textContent = formatNumber(totals.protein_g);
         fatTotal.textContent = formatNumber(totals.fat_g);
+        carbsTotal.textContent = formatNumber(totals.carbs_g || 0);
+        fibreTotal.textContent = formatNumber(totals.fibre_g || 0);
+        sugarTotal.textContent = formatNumber(totals.sugar_g || 0);
 
         caloriesMeter.style.width = `${Math.min(100, (totals.calories / totals.targets.calories_max) * 100)}%`;
         proteinMeter.style.width = `${Math.min(100, (totals.protein_g / totals.targets.protein_min_g) * 100)}%`;
@@ -487,7 +502,7 @@
                 <div class="entry-row">
                     <div>
                         <strong>${entry.calories} kcal</strong>
-                        <span>${escapeHtml(entry.source_label)} · ${formatNumber(entry.protein_g)} g protein · ${formatNumber(entry.fat_g)} g fat</span>
+                        <span>${escapeHtml(entry.source_label)} · ${formatNumber(entry.protein_g)} g protein · ${formatNumber(entry.fat_g)} g fat · ${formatNumber(entry.carbs_g)} g carbs · ${formatNumber(entry.fibre_g)} g fibre · ${formatNumber(entry.sugar_g)} g sugar</span>
                     </div>
                     <button class="delete-entry" type="button" data-delete-entry="${entry.id}" aria-label="Delete entry">x</button>
                 </div>
@@ -543,6 +558,9 @@
                 <span><b>${estimate.calories}</b> kcal</span>
                 <span><b>${formatNumber(estimate.protein_g)}</b> protein g</span>
                 <span><b>${formatNumber(estimate.fat_g)}</b> fat g</span>
+                <span><b>${formatNumber(estimate.carbs_g)}</b> carbs g</span>
+                <span><b>${formatNumber(estimate.fibre_g)}</b> fibre g</span>
+                <span><b>${formatNumber(estimate.sugar_g)}</b> sugar g</span>
             </div>
             <p>${escapeHtml(estimate.explanation || 'Estimate ready for approval.')}</p>
             ${renderEstimateMethodology(estimate)}
@@ -598,6 +616,9 @@
                     <span>${item.calories || 0} kcal</span>
                     <span>${formatNumber(item.protein_g)} g protein</span>
                     <span>${formatNumber(item.fat_g)} g fat</span>
+                    <span>${formatNumber(item.carbs_g)} g carbs</span>
+                    <span>${formatNumber(item.fibre_g)} g fibre</span>
+                    <span>${formatNumber(item.sugar_g)} g sugar</span>
                 </div>
                 <small>${escapeHtml(item.cooking_assumption || 'Cooking method estimated from selected style.')}</small>
             </article>

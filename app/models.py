@@ -15,6 +15,9 @@ class NutritionEntry(models.Model):
     calories = models.PositiveIntegerField()
     protein_g = models.DecimalField(max_digits=7, decimal_places=1)
     fat_g = models.DecimalField(max_digits=7, decimal_places=1)
+    carbs_g = models.DecimalField(max_digits=7, decimal_places=1, default=0)
+    fibre_g = models.DecimalField(max_digits=7, decimal_places=1, default=0)
+    sugar_g = models.DecimalField(max_digits=7, decimal_places=1, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
