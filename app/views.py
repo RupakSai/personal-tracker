@@ -9,14 +9,14 @@ from django.conf import settings
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
 from django.db import connection
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.db.utils import DatabaseError, OperationalError, ProgrammingError
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import NutritionEntry
+from .models import ExpenseEntry, NutritionEntry, WeightEntry
 
 
 PIN_CODE = '8688'
@@ -228,6 +228,197 @@ def ai_estimate(request):
     return JsonResponse({'estimate': estimate})
 
 
+@require_GET
+def weight_month_summary(request):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(WeightEntry)
+    if table_error:
+        return table_error
+
+    month_range, error = _month_range(request)
+    if error:
+        return error
+    first_day, next_month = month_range
+
+    rows = WeightEntry.objects.filter(date__gte=first_day, date__lt=next_month)
+    return JsonResponse(
+        {
+            'days': {
+                row.date.isoformat(): {
+                    'weight_kg': _decimal_payload(row.weight_kg),
+                }
+                for row in rows
+            }
+        }
+    )
+
+
+@require_GET
+def weight_day_detail(request, selected_date):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(WeightEntry)
+    if table_error:
+        return table_error
+
+    entry_date, error = _parse_date(selected_date)
+    if error:
+        return error
+
+    entry = WeightEntry.objects.filter(date=entry_date).first()
+    return JsonResponse(
+        {
+            'date': entry_date.isoformat(),
+            'weight': _weight_payload(entry) if entry else None,
+        }
+    )
+
+
+@require_POST
+def save_weight(request, selected_date):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(WeightEntry)
+    if table_error:
+        return table_error
+
+    entry_date, error = _parse_date(selected_date)
+    if error:
+        return error
+
+    data = _json_body(request)
+    try:
+        weight_kg = _positive_decimal(data.get('weight_kg'), 'weight')
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    if weight_kg > Decimal('500.0'):
+        return JsonResponse({'error': 'Please enter a realistic weight.'}, status=400)
+
+    entry, _created = WeightEntry.objects.update_or_create(
+        date=entry_date,
+        defaults={'weight_kg': weight_kg},
+    )
+    return JsonResponse({'weight': _weight_payload(entry)})
+
+
+@require_GET
+def expenses_month_summary(request):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(ExpenseEntry)
+    if table_error:
+        return table_error
+
+    month_range, error = _month_range(request)
+    if error:
+        return error
+    first_day, next_month = month_range
+
+    rows = (
+        ExpenseEntry.objects.filter(date__gte=first_day, date__lt=next_month)
+        .values('date')
+        .annotate(total=Sum('amount'), count=Count('id'))
+        .order_by('date')
+    )
+    return JsonResponse(
+        {
+            'days': {
+                row['date'].isoformat(): {
+                    'total': _money_payload(row['total'] or 0),
+                    'count': row['count'] or 0,
+                }
+                for row in rows
+            }
+        }
+    )
+
+
+@require_GET
+def expenses_day_detail(request, selected_date):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(ExpenseEntry)
+    if table_error:
+        return table_error
+
+    entry_date, error = _parse_date(selected_date)
+    if error:
+        return error
+
+    entries = ExpenseEntry.objects.filter(date=entry_date)
+    return JsonResponse(
+        {
+            'date': entry_date.isoformat(),
+            'entries': [_expense_payload(entry) for entry in entries],
+            'total': _money_payload(entries.aggregate(total=Sum('amount'))['total'] or 0),
+        }
+    )
+
+
+@require_POST
+def create_expense(request, selected_date):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(ExpenseEntry)
+    if table_error:
+        return table_error
+
+    entry_date, error = _parse_date(selected_date)
+    if error:
+        return error
+
+    data = _json_body(request)
+    try:
+        amount = _positive_money(data.get('amount'), 'amount')
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    entry = ExpenseEntry.objects.create(
+        date=entry_date,
+        amount=amount,
+        note=str(data.get('note', '')).strip()[:120],
+    )
+    entries = ExpenseEntry.objects.filter(date=entry_date)
+    return JsonResponse(
+        {
+            'entry': _expense_payload(entry),
+            'total': _money_payload(entries.aggregate(total=Sum('amount'))['total'] or 0),
+        },
+        status=201,
+    )
+
+
+@require_POST
+def delete_expense(request, entry_id):
+    auth_error = _auth_error(request)
+    if auth_error:
+        return auth_error
+
+    table_error = _ensure_tracker_tables(ExpenseEntry)
+    if table_error:
+        return table_error
+
+    deleted, _ = ExpenseEntry.objects.filter(id=entry_id).delete()
+    if not deleted:
+        return JsonResponse({'error': 'Expense not found.'}, status=404)
+
+    return JsonResponse({'ok': True})
+
+
 def _auth_error(request):
     if _is_unlocked(request):
         return None
@@ -252,18 +443,29 @@ def _auth_signer():
 
 
 def _ensure_tracker_table():
-    table_name = NutritionEntry._meta.db_table
+    return _ensure_tracker_tables(NutritionEntry)
+
+
+def _ensure_tracker_tables(*models):
+    missing_models = []
 
     try:
-        if table_name in connection.introspection.table_names():
+        existing_tables = connection.introspection.table_names()
+        for model in models:
+            if model._meta.db_table not in existing_tables:
+                missing_models.append(model)
+
+        if not missing_models:
             return None
 
         with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(NutritionEntry)
+            for model in missing_models:
+                schema_editor.create_model(model)
     except (DatabaseError, OperationalError, ProgrammingError):
         connection.close()
         try:
-            if table_name in connection.introspection.table_names():
+            existing_tables = connection.introspection.table_names()
+            if all(model._meta.db_table in existing_tables for model in models):
                 return None
         except (DatabaseError, OperationalError, ProgrammingError):
             pass
@@ -295,6 +497,23 @@ def _parse_date(value):
         return None, JsonResponse({'error': 'Please select a valid date.'}, status=400)
 
 
+def _month_range(request):
+    today = date.today()
+    try:
+        year = int(request.GET.get('year', today.year))
+        month = int(request.GET.get('month', today.month))
+        first_day = date(year, month, 1)
+    except (TypeError, ValueError):
+        return None, JsonResponse({'error': 'Please provide a valid month.'}, status=400)
+
+    if month == 12:
+        next_month = date(year + 1, 1, 1)
+    else:
+        next_month = date(year, month + 1, 1)
+
+    return (first_day, next_month), None
+
+
 def _positive_int(value, label):
     try:
         number = int(value)
@@ -317,6 +536,17 @@ def _positive_decimal(value, label):
     return number
 
 
+def _positive_money(value, label):
+    try:
+        number = Decimal(str(value)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError(f'Please enter a valid {label}.')
+
+    if number < 0 or number > Decimal('10000000'):
+        raise ValueError(f'Please enter a realistic {label}.')
+    return number
+
+
 def _optional_positive_decimal(value, label):
     if value in (None, ''):
         return None
@@ -331,6 +561,24 @@ def _entry_payload(entry):
         'calories': entry.calories,
         'protein_g': _decimal_payload(entry.protein_g),
         'fat_g': _decimal_payload(entry.fat_g),
+        'created_at': entry.created_at.isoformat(),
+    }
+
+
+def _weight_payload(entry):
+    return {
+        'id': entry.id,
+        'date': entry.date.isoformat(),
+        'weight_kg': _decimal_payload(entry.weight_kg),
+        'updated_at': entry.updated_at.isoformat(),
+    }
+
+
+def _expense_payload(entry):
+    return {
+        'id': entry.id,
+        'amount': _money_payload(entry.amount),
+        'note': entry.note,
         'created_at': entry.created_at.isoformat(),
     }
 
@@ -386,6 +634,10 @@ def _status_payload(calories, protein_g, fat_g):
 
 def _decimal_payload(value):
     return float(Decimal(value).quantize(Decimal('0.1')))
+
+
+def _money_payload(value):
+    return float(Decimal(value).quantize(Decimal('0.01')))
 
 
 def _env_value(name):

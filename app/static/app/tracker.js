@@ -2,6 +2,7 @@
     const state = {
         unlocked: document.body.dataset.unlocked === 'true',
         pin: '',
+        page: 'nutrition',
         shownMonth: startOfMonth(new Date()),
         selectedDate: null,
         pendingEstimate: null,
@@ -9,6 +10,9 @@
 
     const lockScreen = document.getElementById('lockScreen');
     const appShell = document.getElementById('appShell');
+    const appTitle = document.getElementById('appTitle');
+    const menuButton = document.getElementById('menuButton');
+    const menuPanel = document.getElementById('menuPanel');
     const pinInput = document.getElementById('pinInput');
     const pinPad = document.getElementById('pinPad');
     const pinError = document.getElementById('pinError');
@@ -34,6 +38,15 @@
     const entryModeChoices = document.getElementById('entryModeChoices');
     const askAiButton = document.getElementById('askAiButton');
     const toast = document.getElementById('toast');
+    const openAddSheet = document.getElementById('openAddSheet');
+    const nutritionContent = document.getElementById('nutritionContent');
+    const weightContent = document.getElementById('weightContent');
+    const expenseContent = document.getElementById('expenseContent');
+    const weightForm = document.getElementById('weightForm');
+    const weightDisplay = document.getElementById('weightDisplay');
+    const expenseForm = document.getElementById('expenseForm');
+    const expenseTotal = document.getElementById('expenseTotal');
+    const expenseList = document.getElementById('expenseList');
 
     boot();
 
@@ -64,6 +77,20 @@
             setUnlocked(false);
         });
 
+        menuButton.addEventListener('click', function () {
+            const isOpen = !menuPanel.hidden;
+            menuPanel.hidden = isOpen;
+            menuButton.setAttribute('aria-expanded', String(!isOpen));
+        });
+
+        menuPanel.addEventListener('click', function (event) {
+            const button = event.target.closest('button[data-page]');
+            if (!button) return;
+            switchPage(button.dataset.page);
+            menuPanel.hidden = true;
+            menuButton.setAttribute('aria-expanded', 'false');
+        });
+
         document.getElementById('previousMonth').addEventListener('click', function () {
             state.shownMonth = new Date(state.shownMonth.getFullYear(), state.shownMonth.getMonth() - 1, 1);
             renderCalendar();
@@ -90,7 +117,7 @@
             });
         });
 
-        document.getElementById('openAddSheet').addEventListener('click', openSheet);
+        openAddSheet.addEventListener('click', openSheet);
         document.getElementById('closeSheet').addEventListener('click', closeSheet);
         sheetBackdrop.addEventListener('click', closeSheet);
 
@@ -115,6 +142,39 @@
                 showToast('Saved. Nice tracking.');
             } catch (error) {
                 showSheetError(error.message);
+            }
+        });
+
+        weightForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(weightForm).entries());
+            try {
+                const response = await api(`/api/weight/day/${state.selectedDate}/save/`, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                });
+                renderWeight(response);
+                await renderCalendar();
+                showToast('Weight saved.');
+            } catch (error) {
+                renderPanelMessage(weightDisplay, error.message, 'bad');
+            }
+        });
+
+        expenseForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(expenseForm).entries());
+            try {
+                await api(`/api/expenses/day/${state.selectedDate}/entries/`, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                });
+                expenseForm.reset();
+                await selectDate(state.selectedDate);
+                await renderCalendar();
+                showToast('Spending added.');
+            } catch (error) {
+                renderPanelMessage(expenseList, error.message, 'bad');
             }
         });
 
@@ -174,6 +234,37 @@
             await api(`/api/entries/${button.dataset.deleteEntry}/delete/`, { method: 'POST' });
             await selectDate(state.selectedDate);
             await renderCalendar();
+        });
+
+        expenseList.addEventListener('click', async function (event) {
+            const button = event.target.closest('[data-delete-expense]');
+            if (!button) return;
+            await api(`/api/expenses/entries/${button.dataset.deleteExpense}/delete/`, { method: 'POST' });
+            await selectDate(state.selectedDate);
+            await renderCalendar();
+        });
+    }
+
+    function switchPage(page) {
+        state.page = page;
+        const pageTitles = {
+            nutrition: 'Daily nutrition',
+            weight: 'Weight progress',
+            expenses: 'Daily expenses',
+        };
+        appTitle.textContent = pageTitles[page] || pageTitles.nutrition;
+        document.querySelectorAll('[data-page]').forEach(function (button) {
+            button.classList.toggle('active', button.dataset.page === page);
+        });
+        nutritionContent.hidden = page !== 'nutrition';
+        weightContent.hidden = page !== 'weight';
+        expenseContent.hidden = page !== 'expenses';
+        openAddSheet.hidden = page !== 'nutrition';
+        dayPanel.hidden = !state.selectedDate;
+        renderCalendar().then(function () {
+            if (state.selectedDate) {
+                selectDate(state.selectedDate);
+            }
         });
     }
 
@@ -244,8 +335,7 @@
             if (key === state.selectedDate) button.classList.add('selected');
             if (summary[key]) {
                 button.classList.add('has-data');
-                const totals = summary[key];
-                if (totals.calories > totals.targets.calories_max || totals.fat_g > totals.targets.fat_max_g) {
+                if (state.page === 'nutrition' && dayNeedsAttention(summary[key])) {
                     button.classList.add('attention');
                 }
             }
@@ -256,9 +346,18 @@
         }
     }
 
+    function dayNeedsAttention(totals) {
+        return totals.calories > totals.targets.calories_max || totals.fat_g > totals.targets.fat_max_g;
+    }
+
     async function loadMonthSummary(year, month) {
         try {
-            const response = await api(`/api/month/?year=${year}&month=${month}`);
+            const endpoints = {
+                nutrition: `/api/month/?year=${year}&month=${month}`,
+                weight: `/api/weight/month/?year=${year}&month=${month}`,
+                expenses: `/api/expenses/month/?year=${year}&month=${month}`,
+            };
+            const response = await api(endpoints[state.page]);
             return response.days || {};
         } catch (_error) {
             return {};
@@ -273,16 +372,36 @@
 
         dayPanel.hidden = false;
         selectedDateTitle.textContent = prettyDate(dateKey);
+        openAddSheet.hidden = state.page !== 'nutrition';
         try {
-            const response = await api(`/api/day/${dateKey}/`);
-            renderTotals(response.totals);
-            renderEntries(response.entries);
+            if (state.page === 'nutrition') {
+                const response = await api(`/api/day/${dateKey}/`);
+                renderTotals(response.totals);
+                renderEntries(response.entries);
+            }
+            if (state.page === 'weight') {
+                renderWeight(await api(`/api/weight/day/${dateKey}/`));
+            }
+            if (state.page === 'expenses') {
+                renderExpenses(await api(`/api/expenses/day/${dateKey}/`));
+            }
         } catch (error) {
             renderDayError(error.message);
         }
     }
 
     function renderDayError(message) {
+        if (state.page === 'weight') {
+            weightForm.elements.weight_kg.value = '';
+            renderPanelMessage(weightDisplay, message || 'Could not load this day.', 'bad');
+            return;
+        }
+        if (state.page === 'expenses') {
+            expenseTotal.innerHTML = '<strong>₹0</strong><span>Total spent this day</span>';
+            renderPanelMessage(expenseList, message || 'Could not load this day.', 'bad');
+            return;
+        }
+
         renderTotals({
             calories: 0,
             protein_g: 0,
@@ -301,6 +420,44 @@
         });
         entryCount.textContent = '0 items';
         entryList.innerHTML = '<div class="empty-state">Day details could not load.</div>';
+    }
+
+    function renderWeight(response) {
+        const weight = response.weight;
+        weightForm.elements.weight_kg.value = weight ? formatNumber(weight.weight_kg) : '';
+        if (!weight) {
+            weightDisplay.innerHTML = '<span>No weight entered for this day.</span>';
+            return;
+        }
+        weightDisplay.innerHTML = `
+            <strong>${formatNumber(weight.weight_kg)} kg</strong>
+            <span>Saved for ${prettyDate(response.date)}</span>
+        `;
+    }
+
+    function renderExpenses(response) {
+        const entries = response.entries || [];
+        expenseTotal.innerHTML = `<strong>${formatMoney(response.total)}</strong><span>Total spent this day</span>`;
+        if (!entries.length) {
+            expenseList.innerHTML = '<div class="empty-state">No spendings entered for this day.</div>';
+            return;
+        }
+
+        expenseList.innerHTML = entries.map(function (entry) {
+            return `
+                <div class="expense-row">
+                    <div>
+                        <strong>${formatMoney(entry.amount)}</strong>
+                        <span>${escapeHtml(entry.note || 'Spending')}</span>
+                    </div>
+                    <button class="delete-entry" type="button" data-delete-expense="${entry.id}" aria-label="Delete spending">x</button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderPanelMessage(target, message, kind) {
+        target.innerHTML = `<div class="status-pill ${kind || 'warn'}">${escapeHtml(message)}</div>`;
     }
 
     function renderTotals(totals) {
@@ -540,6 +697,14 @@
     function formatNumber(value) {
         const number = Number(value || 0);
         return Number.isInteger(number) ? String(number) : number.toFixed(1);
+    }
+
+    function formatMoney(value) {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 2,
+        }).format(Number(value || 0));
     }
 
     function escapeHtml(value) {

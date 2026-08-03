@@ -177,9 +177,64 @@ h1 {
     padding: 8px 2px 16px;
 }
 
+.header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
 .app-header h1 {
     margin: 0;
     font-size: clamp(2rem, 9vw, 4rem);
+}
+
+.menu-button {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border: 1px solid rgba(21, 23, 24, 0.1);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.menu-button span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    margin: 2px 0;
+    border-radius: 999px;
+    background: var(--ink);
+}
+
+.menu-panel {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px;
+    border: 1px solid rgba(21, 23, 24, 0.08);
+    border-radius: 22px;
+    background: rgba(255, 253, 248, 0.92);
+    box-shadow: 0 14px 34px rgba(21, 23, 24, 0.08);
+    animation: panelRise 180ms ease both;
+}
+
+.menu-panel button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 500;
+}
+
+.menu-panel button.active {
+    background: var(--ink);
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgba(21, 23, 24, 0.14);
 }
 
 .icon-button {
@@ -471,6 +526,10 @@ h1 {
     margin-top: 20px;
 }
 
+.tracker-content {
+    animation: panelRise 220ms ease both;
+}
+
 .entries-title h3 {
     margin: 0;
 }
@@ -525,6 +584,82 @@ h1 {
     text-align: center;
     font-size: 0.9rem;
     font-weight: 700;
+}
+
+.inline-form {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.inline-form label {
+    display: grid;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.inline-form input {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    padding: 0 14px;
+    outline: none;
+    background: #f8f8f4;
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.inline-form input:focus {
+    border-color: rgba(40, 102, 217, 0.7);
+    box-shadow: 0 0 0 4px rgba(40, 102, 217, 0.1);
+}
+
+.single-stat,
+.expense-total {
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid rgba(21, 23, 24, 0.08);
+    border-radius: 20px;
+    background: rgba(21, 143, 105, 0.1);
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.single-stat strong,
+.expense-total strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.expense-total {
+    background: rgba(40, 102, 217, 0.1);
+}
+
+.expense-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid rgba(21, 23, 24, 0.08);
+    border-radius: 18px;
+    background: white;
+}
+
+.expense-row strong,
+.expense-row span {
+    display: block;
+}
+
+.expense-row span {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 500;
 }
 
 .sheet-backdrop {
@@ -818,8 +953,10 @@ h3,
 .calendar-day,
 .shortcut-row button,
 .choice-row button,
+.menu-panel button,
 .primary-button,
 .add-entry-button,
+.menu-button,
 .icon-button,
 .pin-pad button,
 .delete-entry,
@@ -830,8 +967,10 @@ h3,
 .calendar-day:active,
 .shortcut-row button:active,
 .choice-row button:active,
+.menu-panel button:active,
 .primary-button:active,
 .add-entry-button:active,
+.menu-button:active,
 .icon-button:active,
 .pin-pad button:active,
 .delete-entry:active,

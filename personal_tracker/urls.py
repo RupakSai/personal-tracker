@@ -29,4 +29,11 @@ urlpatterns = [
     path('api/day/<str:selected_date>/entries/', views.create_entry, name='create_entry'),
     path('api/entries/<int:entry_id>/delete/', views.delete_entry, name='delete_entry'),
     path('api/ai-estimate/', views.ai_estimate, name='ai_estimate'),
+    path('api/weight/month/', views.weight_month_summary, name='weight_month_summary'),
+    path('api/weight/day/<str:selected_date>/', views.weight_day_detail, name='weight_day_detail'),
+    path('api/weight/day/<str:selected_date>/save/', views.save_weight, name='save_weight'),
+    path('api/expenses/month/', views.expenses_month_summary, name='expenses_month_summary'),
+    path('api/expenses/day/<str:selected_date>/', views.expenses_day_detail, name='expenses_day_detail'),
+    path('api/expenses/day/<str:selected_date>/entries/', views.create_expense, name='create_expense'),
+    path('api/expenses/entries/<int:entry_id>/delete/', views.delete_expense, name='delete_expense'),
 ]

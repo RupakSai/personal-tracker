@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.test import TestCase
 
 from . import views
-from .models import NutritionEntry
+from .models import ExpenseEntry, NutritionEntry, WeightEntry
 
 
 class TrackerTests(TestCase):
@@ -62,6 +62,43 @@ class TrackerTests(TestCase):
             {field.name for field in NutritionEntry._meta.fields},
             {'id', 'date', 'source', 'calories', 'protein_g', 'fat_g', 'created_at'},
         )
+
+    def test_weight_can_be_saved_and_edited_for_a_day(self):
+        self.unlock()
+        response = self.client.post(
+            '/api/weight/day/2026-08-03/save/',
+            data={'weight_kg': 82.4},
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['weight']['weight_kg'], 82.4)
+
+        response = self.client.post(
+            '/api/weight/day/2026-08-03/save/',
+            data={'weight_kg': 82.1},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['weight']['weight_kg'], 82.1)
+        self.assertEqual(WeightEntry.objects.count(), 1)
+
+    def test_multiple_expenses_can_be_saved_for_a_day(self):
+        self.unlock()
+        for amount, note in [(180, 'Breakfast'), (45.5, 'Tea')]:
+            response = self.client.post(
+                '/api/expenses/day/2026-08-03/entries/',
+                data={'amount': amount, 'note': note},
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 201)
+
+        response = self.client.get('/api/expenses/day/2026-08-03/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['total'], 225.5)
+        self.assertEqual(len(response.json()['entries']), 2)
+        self.assertEqual(ExpenseEntry.objects.count(), 2)
 
     @patch('app.views._openai_nutrition_estimate')
     def test_ai_estimate_does_not_create_entry_without_approval(self, estimate_mock):
