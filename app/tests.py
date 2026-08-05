@@ -21,6 +21,7 @@ class TrackerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertIn('tracker_auth', response.cookies)
+        self.assertEqual(response.cookies['tracker_auth']['max-age'], 120)
 
     def test_signed_auth_cookie_allows_protected_api(self):
         self.unlock()
@@ -204,6 +205,34 @@ class TrackerTests(TestCase):
         self.assertIn('Hyderabad, India Telugu home-style', style_text)
         self.assertIsNone(grams)
         self.assertEqual(NutritionEntry.objects.count(), 0)
+
+    @patch('app.views._openai_nutrition_estimate')
+    def test_ai_estimate_supports_packaged_food_style(self, estimate_mock):
+        estimate_mock.return_value = {
+            'calories': 160,
+            'protein_g': 4.0,
+            'fat_g': 8.0,
+            'carbs_g': 18.0,
+            'fibre_g': 1.0,
+            'sugar_g': 2.0,
+            'confidence': 'medium',
+            'explanation': 'Packaged snack estimate depends on the exact label.',
+        }
+        self.unlock()
+
+        response = self.client.post(
+            '/api/ai-estimate/',
+            data={
+                'dish_name': 'one packet masala lays',
+                'style': 'packaged',
+            },
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        _food_text, style_text, grams = estimate_mock.call_args.args
+        self.assertIn('Packaged branded food', style_text)
+        self.assertIsNone(grams)
 
     def test_estimate_breakdown_payload_is_normalized(self):
         breakdown = views._estimate_breakdown_payload(

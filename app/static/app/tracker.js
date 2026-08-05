@@ -1,6 +1,12 @@
 (function () {
+    const UNLOCK_SESSION_KEY = 'personalTrackerUnlockedTab';
+    const AUTO_LOCK_MS = 2 * 60 * 1000;
+    let autoLockTimer = null;
+    let lastTouchEndAt = 0;
+    const savedUnlockAt = Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0);
+
     const state = {
-        unlocked: document.body.dataset.unlocked === 'true',
+        unlocked: document.body.dataset.unlocked === 'true' && savedUnlockAt > 0 && Date.now() - savedUnlockAt < AUTO_LOCK_MS,
         pin: '',
         page: 'nutrition',
         shownMonth: startOfMonth(new Date()),
@@ -54,6 +60,9 @@
     boot();
 
     function boot() {
+        if (document.body.dataset.unlocked === 'true' && !state.unlocked) {
+            api('/api/logout/', { method: 'POST' }).catch(function () {});
+        }
         setUnlocked(state.unlocked);
         bindEvents();
         renderCalendar();
@@ -63,6 +72,22 @@
     }
 
     function bindEvents() {
+        document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                stopAutoLockTimer();
+                return;
+            }
+            if (state.unlocked) {
+                if (hasUnlockExpired()) {
+                    lockTracker({ silent: true });
+                } else {
+                    scheduleAutoLock();
+                }
+            }
+        });
+
         pinInput.addEventListener('focus', function () {
             pinInput.blur();
         });
@@ -74,10 +99,7 @@
         });
 
         document.getElementById('logoutButton').addEventListener('click', async function () {
-            await api('/api/logout/', { method: 'POST' });
-            state.pin = '';
-            state.unlocked = false;
-            setUnlocked(false);
+            await lockTracker();
         });
 
         menuButton.addEventListener('click', function () {
@@ -300,6 +322,7 @@
                 body: JSON.stringify({ pin: state.pin }),
             });
             state.unlocked = true;
+            sessionStorage.setItem(UNLOCK_SESSION_KEY, String(Date.now()));
             setUnlocked(true);
             await renderCalendar();
             await selectDate(toDateKey(new Date()));
@@ -313,6 +336,59 @@
     function setUnlocked(isUnlocked) {
         lockScreen.hidden = isUnlocked;
         appShell.hidden = !isUnlocked;
+        if (isUnlocked) {
+            scheduleAutoLock();
+        } else {
+            stopAutoLockTimer();
+            menuPanel.hidden = true;
+            menuButton.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    async function lockTracker(options) {
+        const silent = options && options.silent;
+        sessionStorage.removeItem(UNLOCK_SESSION_KEY);
+        state.pin = '';
+        pinInput.value = '';
+        state.unlocked = false;
+        setUnlocked(false);
+        if (!silent) {
+            pinError.textContent = '';
+        }
+        try {
+            await api('/api/logout/', { method: 'POST' });
+        } catch (_error) {}
+    }
+
+    function scheduleAutoLock() {
+        stopAutoLockTimer();
+        const remainingMs = AUTO_LOCK_MS - (Date.now() - Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0));
+        if (remainingMs <= 0) {
+            lockTracker({ silent: true });
+            return;
+        }
+        autoLockTimer = window.setTimeout(function () {
+            lockTracker({ silent: true });
+        }, remainingMs);
+    }
+
+    function stopAutoLockTimer() {
+        if (autoLockTimer) {
+            window.clearTimeout(autoLockTimer);
+            autoLockTimer = null;
+        }
+    }
+
+    function preventDoubleTapZoom(event) {
+        const now = Date.now();
+        if (now - lastTouchEndAt <= 320) {
+            event.preventDefault();
+        }
+        lastTouchEndAt = now;
+    }
+
+    function hasUnlockExpired() {
+        return Date.now() - Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0) >= AUTO_LOCK_MS;
     }
 
     async function renderCalendar() {
@@ -338,12 +414,19 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'calendar-day';
-            button.textContent = String(day);
+            button.innerHTML = `<span class="calendar-number">${day}</span>`;
             button.dataset.date = key;
             if (key === toDateKey(new Date())) button.classList.add('today');
             if (key === state.selectedDate) button.classList.add('selected');
             if (summary[key]) {
                 button.classList.add('has-data');
+                if (state.page === 'weight') {
+                    button.classList.add('weight-day');
+                    button.insertAdjacentHTML(
+                        'beforeend',
+                        `<small>${formatNumber(summary[key].weight_kg)} kg</small>`,
+                    );
+                }
                 if (state.page === 'nutrition' && dayNeedsAttention(summary[key])) {
                     button.classList.add('attention');
                 }

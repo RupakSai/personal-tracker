@@ -18,6 +18,9 @@
 html {
     min-height: 100%;
     background: #edece6;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
 }
 
 body {
@@ -30,6 +33,9 @@ body {
         linear-gradient(135deg, rgba(40, 102, 217, 0.12), transparent 28%),
         linear-gradient(315deg, rgba(225, 95, 73, 0.16), transparent 24%),
         #f7f6f1;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
 }
 
 button,
@@ -39,6 +45,9 @@ input {
 
 button {
     cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
 }
 
 [hidden] {
@@ -194,18 +203,31 @@ h1 {
     width: 46px;
     height: 46px;
     place-items: center;
-    border: 1px solid rgba(21, 23, 24, 0.1);
+    border: 1px solid rgba(21, 23, 24, 0.08);
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.72);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 245, 239, 0.9)),
+        #ffffff;
+    box-shadow: 0 12px 26px rgba(21, 23, 24, 0.1);
 }
 
-.menu-button span {
-    display: block;
-    width: 18px;
-    height: 2px;
-    margin: 2px 0;
-    border-radius: 999px;
+.menu-button svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-linecap: round;
+    stroke-width: 2.2;
+    transition: transform 180ms ease, stroke 180ms ease;
+}
+
+.menu-button[aria-expanded="true"] {
     background: var(--ink);
+}
+
+.menu-button[aria-expanded="true"] svg {
+    stroke: #ffffff;
+    transform: rotate(90deg);
 }
 
 .menu-panel {
@@ -319,12 +341,34 @@ h1 {
 
 .calendar-day {
     position: relative;
+    display: grid;
+    min-width: 0;
+    place-items: center;
     border: 1px solid rgba(21, 23, 24, 0.08);
     border-radius: 17px;
     background: #ffffff;
     color: var(--ink);
     font-size: 0.9rem;
     font-weight: 800;
+}
+
+.calendar-number {
+    line-height: 1;
+}
+
+.calendar-day small {
+    position: absolute;
+    right: 6px;
+    bottom: 7px;
+    left: 6px;
+    overflow: hidden;
+    color: var(--green);
+    font-size: clamp(0.52rem, 1.9vw, 0.68rem);
+    font-weight: 600;
+    line-height: 1.1;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .calendar-day.today {
@@ -334,6 +378,10 @@ h1 {
 .calendar-day.selected {
     background: var(--ink);
     color: #fff;
+}
+
+.calendar-day.selected small {
+    color: rgba(255, 255, 255, 0.82);
 }
 
 .calendar-day.has-data::after {
@@ -350,6 +398,10 @@ h1 {
 
 .calendar-day.attention::after {
     background: var(--coral);
+}
+
+.calendar-day.weight-day::after {
+    content: none;
 }
 
 .day-panel {

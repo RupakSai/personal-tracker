@@ -22,7 +22,7 @@ from .models import ExpenseEntry, NutritionEntry, WeightEntry
 PIN_CODE = '8688'
 AUTH_COOKIE_NAME = 'tracker_auth'
 AUTH_COOKIE_VALUE = 'rupak-unlocked'
-AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+AUTH_COOKIE_MAX_AGE = 60 * 2
 CALORIE_LIMIT = 1500
 PROTEIN_MINIMUM = Decimal('70.0')
 FAT_LIMIT = Decimal('50.0')
@@ -31,6 +31,7 @@ PREPARATION_STYLES = {
     'restaurant': 'Hyderabad/Indian restaurant style with rich gravies, oil, cream, butter, cashews, frying, and realistic restaurant portions',
     'home': 'Hyderabad, India Telugu home-style cooking with common Andhra/Telangana ingredients, tadka, chutneys, rice, dal, curries, and household oil usage',
     'diet': 'Hyderabad, India diet-focused home preparation with controlled oil, leaner ingredients, and realistic but not optimistic portions',
+    'packaged': 'Packaged branded food or drink in India; prioritize the nutrition label when provided, otherwise infer from common Indian packaged products, serving size, pack size, ingredients, added sugar, sodium-like processing cues, and brand/category norms',
 }
 
 
@@ -734,6 +735,9 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                             'noticeable oil, soy/chilli sauces, limited vegetables unless stated, and common street-vendor portion sizes. For restaurant style, assume richer '
                             'oil/butter/cream/cashew use where relevant. For Telugu home style, assume household tadka, regional chutneys, dal, rice, curry, and controlled but real oil. '
                             'For diet-focused style, reduce oil only when the food text supports it, but do not make unrealistically lean assumptions. '
+                            'For packaged food style, treat the item as a branded packaged Indian food or drink. If the user gives a brand, pack size, label numbers, '
+                            'serving count, flavor, or quantity such as one packet, 52 g bag, 200 ml buttermilk, or half bottle, prioritize those details. '
+                            'When no label is provided, infer from common Indian packaged-food nutrition patterns and mention that the estimate depends on the exact label. '
                             'For carbohydrates, fibre, and added sugar, account for rice, wheat, maida, dosa/idli batter, potatoes, sweets, jaggery, chutneys, fruits, sauces, packaged ingredients, '
                             'and the realistic fibre loss or gain from refined grains, dal, legumes, vegetables, peanuts, and coconut. '
                             'If item-level quantities are provided in natural language, use them: examples include 3 idlis, seven-inch pizza, half 10-inch dosa, '
