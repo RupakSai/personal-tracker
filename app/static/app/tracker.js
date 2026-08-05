@@ -502,7 +502,7 @@
                 <div class="entry-row">
                     <div>
                         <strong>${entry.calories} kcal</strong>
-                        <span>${escapeHtml(entry.source_label)} · ${formatNumber(entry.protein_g)} g protein · ${formatNumber(entry.fat_g)} g fat · ${formatNumber(entry.carbs_g)} g carbs · ${formatNumber(entry.fibre_g)} g fibre · ${formatNumber(entry.sugar_g)} g sugar</span>
+                        <span>${escapeHtml(entry.source_label)} · ${formatNumber(entry.protein_g)} g protein · ${formatNumber(entry.fat_g)} g fat · ${formatNumber(entry.carbs_g)} g carbs · ${formatNumber(entry.fibre_g)} g fibre · ${formatNumber(entry.sugar_g)} g added sugar</span>
                     </div>
                     <button class="delete-entry" type="button" data-delete-entry="${entry.id}" aria-label="Delete entry">x</button>
                 </div>
@@ -560,7 +560,7 @@
                 <span><b>${formatNumber(estimate.fat_g)}</b> fat g</span>
                 <span><b>${formatNumber(estimate.carbs_g)}</b> carbs g</span>
                 <span><b>${formatNumber(estimate.fibre_g)}</b> fibre g</span>
-                <span><b>${formatNumber(estimate.sugar_g)}</b> sugar g</span>
+                <span><b>${formatNumber(estimate.sugar_g)}</b> added sugar g</span>
             </div>
             <p>${escapeHtml(estimate.explanation || 'Estimate ready for approval.')}</p>
             ${renderEstimateMethodology(estimate)}
@@ -618,7 +618,7 @@
                     <span>${formatNumber(item.fat_g)} g fat</span>
                     <span>${formatNumber(item.carbs_g)} g carbs</span>
                     <span>${formatNumber(item.fibre_g)} g fibre</span>
-                    <span>${formatNumber(item.sugar_g)} g sugar</span>
+                    <span>${formatNumber(item.sugar_g)} g added sugar</span>
                 </div>
                 <small>${escapeHtml(item.cooking_assumption || 'Cooking method estimated from selected style.')}</small>
             </article>

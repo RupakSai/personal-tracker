@@ -171,7 +171,7 @@ def create_entry(request, selected_date):
         fat_g = _positive_decimal(data.get('fat_g'), 'fat')
         carbs_g = _positive_decimal(data.get('carbs_g', 0), 'carbohydrates')
         fibre_g = _positive_decimal(data.get('fibre_g', 0), 'fibre')
-        sugar_g = _positive_decimal(data.get('sugar_g', 0), 'sugar')
+        sugar_g = _positive_decimal(data.get('sugar_g', 0), 'added sugar')
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
 
@@ -725,14 +725,16 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                         'text': (
                             'You estimate nutrition for food eaten in Hyderabad, India, especially Telugu/Andhra/Telangana foods. '
                             'Prioritize regional realism over generic nutrition tables. Think carefully and be accuracy-focused, not optimistic. '
-                            'Account for oil, tadka, ghee, butter, cream, nuts, peanuts, coconut, chutneys, podi, frying, sugar, sauces, rice-heavy plates, '
+                            'Account for oil, tadka, ghee, butter, cream, nuts, peanuts, coconut, chutneys, podi, frying, added sugar, jaggery, sauces, rice-heavy plates, '
                             'restaurant oil, street-food oil reuse, and normal Indian serving variance. The user may enter one food or a comma/newline-separated '
                             'list of multiple foods; treat the full input as one combined meal/plate and return the combined calories, protein_g, fat_g, carbs_g, fibre_g, and sugar_g. '
+                            'Interpret sugar_g strictly as added sugar only: refined sugar, jaggery, honey, syrups, sweet sauces, sweetened drinks, sweetened packaged ingredients, dessert sugar, '
+                            'or sugar added during cooking. Do not count natural sugars from unsweetened fruit, plain milk/curd, vegetables, grains, dal, or coconut as sugar_g, though they still count in carbs_g. '
                             'Model the preparation method explicitly. For Hyderabad street-style fried rice, for example, assume typical wok cooking with cooked rice, '
                             'noticeable oil, soy/chilli sauces, limited vegetables unless stated, and common street-vendor portion sizes. For restaurant style, assume richer '
                             'oil/butter/cream/cashew use where relevant. For Telugu home style, assume household tadka, regional chutneys, dal, rice, curry, and controlled but real oil. '
                             'For diet-focused style, reduce oil only when the food text supports it, but do not make unrealistically lean assumptions. '
-                            'For carbohydrates, fibre, and sugar, account for rice, wheat, maida, dosa/idli batter, potatoes, sweets, jaggery, chutneys, fruits, sauces, packaged ingredients, '
+                            'For carbohydrates, fibre, and added sugar, account for rice, wheat, maida, dosa/idli batter, potatoes, sweets, jaggery, chutneys, fruits, sauces, packaged ingredients, '
                             'and the realistic fibre loss or gain from refined grains, dal, legumes, vegetables, peanuts, and coconut. '
                             'If item-level quantities are provided in natural language, use them: examples include 3 idlis, seven-inch pizza, half 10-inch dosa, '
                             '1 bowl rice, 2 ladles sambar, one small plate biryani, or one cup curd. If a total gram value is also provided, treat it as the '
@@ -762,7 +764,7 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
                                 'estimation_instruction': (
                                     'Return one combined total for all listed items, not separate line items. '
                                     'When grams are missing, infer the serving from the portion words in food_items_text. '
-                                    'Also return a visible breakdown that explains quantity, grams, oil/cooking assumptions, and macro contribution per item, including carbs, fibre, and sugar.'
+                                    'Also return a visible breakdown that explains quantity, grams, oil/cooking assumptions, and macro contribution per item, including carbs, fibre, and added sugar only.'
                                 ),
                             }
                         ),
@@ -865,7 +867,7 @@ def _openai_nutrition_estimate(dish_name, preparation_style, grams):
             'fat_g': _decimal_payload(_positive_decimal(estimate.get('fat_g'), 'fat')),
             'carbs_g': _decimal_payload(_positive_decimal(estimate.get('carbs_g'), 'carbohydrates')),
             'fibre_g': _decimal_payload(_positive_decimal(estimate.get('fibre_g'), 'fibre')),
-            'sugar_g': _decimal_payload(_positive_decimal(estimate.get('sugar_g'), 'sugar')),
+            'sugar_g': _decimal_payload(_positive_decimal(estimate.get('sugar_g'), 'added sugar')),
             'confidence': estimate.get('confidence', 'medium'),
             'explanation': str(estimate.get('explanation', '')).strip()[:520],
             'methodology': str(estimate.get('methodology', '')).strip()[:520],
@@ -893,7 +895,7 @@ def _estimate_breakdown_payload(items):
                 'fat_g': _decimal_payload(_positive_decimal(item.get('fat_g', 0), 'fat')),
                 'carbs_g': _decimal_payload(_positive_decimal(item.get('carbs_g', 0), 'carbohydrates')),
                 'fibre_g': _decimal_payload(_positive_decimal(item.get('fibre_g', 0), 'fibre')),
-                'sugar_g': _decimal_payload(_positive_decimal(item.get('sugar_g', 0), 'sugar')),
+                'sugar_g': _decimal_payload(_positive_decimal(item.get('sugar_g', 0), 'added sugar')),
                 'cooking_assumption': str(item.get('cooking_assumption', '')).strip()[:180],
             }
         )

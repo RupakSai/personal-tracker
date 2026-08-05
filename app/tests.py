@@ -231,4 +231,15 @@ class TrackerTests(TestCase):
         self.assertEqual(breakdown[0]['fibre_g'], 5.6)
         self.assertEqual(breakdown[0]['sugar_g'], 4.2)
 
+    def test_ai_prompt_treats_sugar_as_added_sugar(self):
+        with patch('app.views._env_value', return_value='test-key'), patch('urllib.request.urlopen') as urlopen_mock:
+            urlopen_mock.side_effect = RuntimeError('stop before network')
+
+            with self.assertRaises(RuntimeError):
+                views._openai_nutrition_estimate('banana and curd', views.PREPARATION_STYLES['home'], None)
+
+        request_payload = urlopen_mock.call_args.args[0].data.decode('utf-8')
+        self.assertIn('added sugar only', request_payload)
+        self.assertIn('Do not count natural sugars', request_payload)
+
 # Create your tests here.
