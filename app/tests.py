@@ -21,7 +21,7 @@ class TrackerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertIn('tracker_auth', response.cookies)
-        self.assertEqual(response.cookies['tracker_auth']['max-age'], 120)
+        self.assertEqual(response.cookies['tracker_auth']['max-age'], 60 * 60 * 24 * 30)
 
     def test_signed_auth_cookie_allows_protected_api(self):
         self.unlock()

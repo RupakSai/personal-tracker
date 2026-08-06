@@ -22,7 +22,7 @@ from .models import ExpenseEntry, NutritionEntry, WeightEntry
 PIN_CODE = '8688'
 AUTH_COOKIE_NAME = 'tracker_auth'
 AUTH_COOKIE_VALUE = 'rupak-unlocked'
-AUTH_COOKIE_MAX_AGE = 60 * 2
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 CALORIE_LIMIT = 1500
 PROTEIN_MINIMUM = Decimal('70.0')
 FAT_LIMIT = Decimal('50.0')

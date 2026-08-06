@@ -1,12 +1,9 @@
 (function () {
     const UNLOCK_SESSION_KEY = 'personalTrackerUnlockedTab';
-    const AUTO_LOCK_MS = 2 * 60 * 1000;
-    let autoLockTimer = null;
     let lastTouchEndAt = 0;
-    const savedUnlockAt = Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0);
 
     const state = {
-        unlocked: document.body.dataset.unlocked === 'true' && savedUnlockAt > 0 && Date.now() - savedUnlockAt < AUTO_LOCK_MS,
+        unlocked: document.body.dataset.unlocked === 'true' && sessionStorage.getItem(UNLOCK_SESSION_KEY) === 'true',
         pin: '',
         page: 'nutrition',
         shownMonth: startOfMonth(new Date()),
@@ -73,20 +70,6 @@
 
     function bindEvents() {
         document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
-
-        document.addEventListener('visibilitychange', function () {
-            if (document.hidden) {
-                stopAutoLockTimer();
-                return;
-            }
-            if (state.unlocked) {
-                if (hasUnlockExpired()) {
-                    lockTracker({ silent: true });
-                } else {
-                    scheduleAutoLock();
-                }
-            }
-        });
 
         pinInput.addEventListener('focus', function () {
             pinInput.blur();
@@ -322,7 +305,7 @@
                 body: JSON.stringify({ pin: state.pin }),
             });
             state.unlocked = true;
-            sessionStorage.setItem(UNLOCK_SESSION_KEY, String(Date.now()));
+            sessionStorage.setItem(UNLOCK_SESSION_KEY, 'true');
             setUnlocked(true);
             await renderCalendar();
             await selectDate(toDateKey(new Date()));
@@ -336,10 +319,7 @@
     function setUnlocked(isUnlocked) {
         lockScreen.hidden = isUnlocked;
         appShell.hidden = !isUnlocked;
-        if (isUnlocked) {
-            scheduleAutoLock();
-        } else {
-            stopAutoLockTimer();
+        if (!isUnlocked) {
             menuPanel.hidden = true;
             menuButton.setAttribute('aria-expanded', 'false');
         }
@@ -360,35 +340,12 @@
         } catch (_error) {}
     }
 
-    function scheduleAutoLock() {
-        stopAutoLockTimer();
-        const remainingMs = AUTO_LOCK_MS - (Date.now() - Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0));
-        if (remainingMs <= 0) {
-            lockTracker({ silent: true });
-            return;
-        }
-        autoLockTimer = window.setTimeout(function () {
-            lockTracker({ silent: true });
-        }, remainingMs);
-    }
-
-    function stopAutoLockTimer() {
-        if (autoLockTimer) {
-            window.clearTimeout(autoLockTimer);
-            autoLockTimer = null;
-        }
-    }
-
     function preventDoubleTapZoom(event) {
         const now = Date.now();
         if (now - lastTouchEndAt <= 320) {
             event.preventDefault();
         }
         lastTouchEndAt = now;
-    }
-
-    function hasUnlockExpired() {
-        return Date.now() - Number(sessionStorage.getItem(UNLOCK_SESSION_KEY) || 0) >= AUTO_LOCK_MS;
     }
 
     async function renderCalendar() {
